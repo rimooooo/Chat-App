@@ -17,19 +17,25 @@ export default function MessageInput({
   const [message, setMessage] = useState("");
   const sendMessage = useMutation(api.messages.sendMessage);
 
-  const handleSend = async () => {
-    // Guard — don't send if anything is missing
-    if (!message.trim() || !senderId || !conversationId) return;
+const handleSend = async () => {
+  console.log("conversationId:", conversationId);
+  console.log("senderId:", senderId);
+  console.log("message:", message);
 
-    await sendMessage({
-      conversationId,
-      senderId,
-      content: message.trim(),
-      messageType: "text",
-    });
+  if (!message.trim() || !senderId || !conversationId) {
+    console.log("BLOCKED — missing one of the above values");
+    return;
+  }
 
-    setMessage("");
-  };
+  await sendMessage({
+    conversationId,
+    senderId,
+    content: message.trim(),
+    messageType: "text",
+  });
+
+  setMessage("");
+};
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
