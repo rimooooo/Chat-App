@@ -71,6 +71,48 @@ export const updateOnlineStatus = mutation({
   },
 });
 
+export const heartbeat = mutation({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return;
+
+    await ctx.db.patch(user._id, {
+      isOnline: true,
+      lastSeen: Date.now(),
+    });
+  },
+});
+
+export const checkOnlineStatus = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return false;
+
+    // If last seen more than 60 seconds ago → offline
+    const sixtySecondsAgo = Date.now() - 60 * 1000;
+    return user.lastSeen ? user.lastSeen > sixtySecondsAgo : false;
+  },
+});
+
+export const setUserOnline = mutation({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return;
+    await ctx.db.patch(user._id, { isOnline: true });
+  },
+});
+
 // function that sets user offline when they leave
 export const setUserOffline = mutation({
   args: { clerkId: v.string() },

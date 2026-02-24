@@ -61,3 +61,55 @@ export const deleteMessage = mutation({
     await ctx.db.delete(args.messageId);
   },
 });
+
+export const setTyping = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("typing")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("conversationId"), args.conversationId),
+          q.eq(q.field("userId"), args.userId)
+        )
+      )
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastTyped: Date.now() });
+    } else {
+      await ctx.db.insert("typing", {
+        conversationId: args.conversationId,
+        userId: args.userId,
+        lastTyped: Date.now(),
+      });
+    }
+  },
+});
+
+export const getTypingUsers = query({
+  args: {
+    conversationId: v.id("conversations"),
+    currentUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const typingUsers = await ctx.db
+      .query("typing")
+      .filter((q) =>
+        q.eq(q.field("conversationId"), args.conversationId)
+      )
+      .collect();
+
+    // Only show typing if typed in last 3 seconds and not current user
+    const threeSecondsAgo = Date.now() - 3000;
+
+    return typingUsers.filter(
+      (t) =>
+        t.userId !== args.currentUserId &&
+        t.lastTyped > threeSecondsAgo
+    );
+  },
+});

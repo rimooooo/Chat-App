@@ -15,58 +15,79 @@ export default function ChatWindow({
 }) {
   const { user } = useUser();
   const bottomRef = useRef<HTMLDivElement>(null);
-  
-  const messages = useQuery(
-    api.messages.getMessages,
-    conversationId ? { conversationId: conversationId as Id<"conversations"> } : "skip"
-  );
 
   const currentUser = useQuery(
     api.users.getUserByClerkId,
     user?.id ? { clerkId: user.id } : "skip"
   );
 
-  const conversation = useQuery(
+  const messages = useQuery(
+    api.messages.getMessages,
+    conversationId
+      ? { conversationId: conversationId as Id<"conversations"> }
+      : "skip"
+  );
+
+  const conversations = useQuery(
     api.conversations.getConversations,
     currentUser?._id ? { userId: currentUser._id } : "skip"
   );
 
-  const otherUser = conversation?.find(
+  // Get the other user from this conversation
+  const otherUser = conversations?.find(
     (c) => c._id === conversationId
   )?.otherUser;
 
+  // Check if other user is online based on lastSeen
+  const isOtherUserOnline =
+    otherUser?.lastSeen !== undefined &&
+    Date.now() - otherUser.lastSeen < 60000;
+
+  // Auto scroll to bottom on new message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ... rest of the component stays the same
+  const typingUsers = useQuery(
+  api.messages.getTypingUsers,
+  conversationId && currentUser?._id
+    ? {
+        conversationId: conversationId as Id<"conversations">,
+        currentUserId: currentUser._id,
+      }
+    : "skip"
+  );
+
 
   return (
     <div className="flex-1 flex flex-col h-screen">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-3">
-        {otherUser && (
-      <>
-        <div className="relative">
-          <img
-            src={otherUser.imageUrl}
-            alt={otherUser.name}
-            className="w-9 h-9 rounded-full object-cover"
-          />
-          <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-            otherUser.isOnline ? "bg-green-500" : "bg-gray-400"
-          }`} />
-        </div>
-      <div>
-        <p className="font-semibold text-gray-800">{otherUser.name}</p>
-        <p className="text-xs text-gray-500">
-          {otherUser.isOnline ? "Online" : "Offline"}
-        </p>
+        {otherUser ? (
+          <>
+            <div className="relative">
+              <img
+                src={otherUser.imageUrl}
+                alt={otherUser.name}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <span
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                  isOtherUserOnline ? "bg-green-500" : "bg-gray-400"
+                }`}
+              />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800">{otherUser.name}</p>
+              <p className="text-xs text-gray-500">
+                {isOtherUserOnline ? "🟢 Online" : "⚫ Offline"}
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-500">Loading...</p>
+        )}
       </div>
-    </>
-    )}
-    </div>
-      
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -76,9 +97,7 @@ export default function ChatWindow({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-400">
-              No messages yet. Say hello! 👋
-            </p>
+            <p className="text-gray-400">No messages yet. Say hello! 👋</p>
           </div>
         ) : (
           messages.map((message) => (
@@ -92,11 +111,25 @@ export default function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
+      {/* Typing Indicator */}
+      {typingUsers && typingUsers.length > 0 && (
+      <div className="flex items-center gap-2 px-2">
+        <div className="bg-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
+          <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:0ms]" />
+          <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:150ms]" />
+          <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+      )
+      }
+
       {/* Message Input */}
       <MessageInput
-         conversationId={conversationId as Id<"conversations">}
-         senderId={currentUser?._id}
+        conversationId={conversationId as Id<"conversations">}
+        senderId={currentUser?._id}
       />
+
+      
     </div>
   );
 }

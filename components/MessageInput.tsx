@@ -16,26 +16,29 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const sendMessage = useMutation(api.messages.sendMessage);
+  const setTyping = useMutation(api.messages.setTyping);
 
-const handleSend = async () => {
-  console.log("conversationId:", conversationId);
-  console.log("senderId:", senderId);
-  console.log("message:", message);
+  const handleSend = async () => {
+    if (!message.trim() || !senderId || !conversationId) return;
 
-  if (!message.trim() || !senderId || !conversationId) {
-    console.log("BLOCKED — missing one of the above values");
-    return;
-  }
+    await sendMessage({
+      conversationId,
+      senderId,
+      content: message.trim(),
+      messageType: "text",
+    });
 
-  await sendMessage({
-    conversationId,
-    senderId,
-    content: message.trim(),
-    messageType: "text",
-  });
+    setMessage("");
+  };
 
-  setMessage("");
-};
+  const handleTyping = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+
+    // Send typing indicator
+    if (senderId && conversationId) {
+      await setTyping({ conversationId, userId: senderId });
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -50,7 +53,7 @@ const handleSend = async () => {
         <input
           type="text"
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleTyping}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300"

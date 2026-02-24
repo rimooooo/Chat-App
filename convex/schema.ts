@@ -8,6 +8,7 @@ export default defineSchema({
     imageUrl: v.string(),
     clerkId: v.string(),
     isOnline: v.boolean(),
+    lastSeen: v.optional(v.number()),
   })
     .index("by_clerkId", ["clerkId"])
     .index("by_email", ["email"]),
@@ -30,4 +31,11 @@ export default defineSchema({
       v.literal("video")
     ),
   }).index("by_conversationId", ["conversationId"]),
+
+  typing: defineTable({
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+    lastTyped: v.number(),
+  }),
+  
 });

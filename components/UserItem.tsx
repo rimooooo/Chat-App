@@ -16,6 +16,11 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
 
   const createConversation = useMutation(api.conversations.createConversation);
 
+  // Check online status using lastSeen
+  const isOnline =
+    user?.lastSeen !== undefined &&
+    Date.now() - user.lastSeen < 60000;
+
   const handleClick = async () => {
     if (!currentUser) return;
 
@@ -42,7 +47,7 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
         {/* Online indicator */}
         <span
           className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-            user.isOnline ? "bg-green-500" : "bg-gray-400"
+            isOnline ? "bg-green-500" : "bg-gray-400"
           }`}
         />
       </div>
@@ -50,7 +55,9 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
       {/* User Info */}
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-800 truncate">{user.name}</p>
-        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+        <p className="text-xs text-gray-500">
+          {isOnline ? "🟢 Online" : "⚫ Offline"}
+        </p>
       </div>
     </div>
   );
