@@ -1,13 +1,14 @@
 import ChatWindow from "@/components/ChatWindow";
 
-export default function ChatPage({
+export default async function ChatPage({
   params,
 }: {
-  params: { conversationId: string };
+  params: Promise <{ conversationId: string }>;
 }) {
+  const { conversationId } = await params;
   return (
     <div className="flex h-screen bg-gray-100">
-      <ChatWindow conversationId={params.conversationId} />
+      <ChatWindow conversationId={conversationId} />
     </div>
   );
 }

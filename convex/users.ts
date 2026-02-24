@@ -70,3 +70,17 @@ export const updateOnlineStatus = mutation({
     await ctx.db.patch(user._id, { isOnline: args.isOnline });
   },
 });
+
+// function that sets user offline when they leave
+export const setUserOffline = mutation({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return;
+    await ctx.db.patch(user._id, { isOnline: false });
+  },
+});

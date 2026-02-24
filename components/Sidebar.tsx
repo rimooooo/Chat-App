@@ -4,13 +4,21 @@ import { useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import UserItem from "./UserItem";
+import { useClerk } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 export default function Sidebar() {
   const { user } = useUser();
+  const { signOut } = useClerk();
+  const router = useRouter();
 
   const users = useQuery(api.users.getUsers, {
     clerkId: user?.id ?? "",
   });
+  const handleLogout = async () => {
+  await signOut();
+  router.push("/sign-in");
+  };
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-screen">
@@ -36,15 +44,24 @@ export default function Sidebar() {
 
       {/* Logged in user at bottom */}
       <div className="p-4 border-t border-gray-200 flex items-center gap-3">
-        <img
-          src={user?.imageUrl}
-          alt={user?.fullName ?? ""}
-          className="w-9 h-9 rounded-full object-cover"
-        />
-        <div>
-          <p className="text-sm font-medium text-gray-800">{user?.fullName}</p>
-          <p className="text-xs text-green-500">Online</p>
-        </div>
+      <img
+        src={user?.imageUrl}
+        alt={user?.fullName ?? ""}
+        className="w-9 h-9 rounded-full object-cover"
+      />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-gray-800">{user?.fullName}</p>
+        <p className="text-xs text-green-500">Online</p>
+      </div>
+      <button
+        onClick={handleLogout}
+        className="text-gray-400 hover:text-red-500 transition-colors"
+        title="Logout"
+      >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+        <path fillRule="evenodd" d="M7.5 3.75A1.5 1.5 0 006 5.25v13.5a1.5 1.5 0 001.5 1.5h6a1.5 1.5 0 001.5-1.5V15a.75.75 0 011.5 0v3.75a3 3 0 01-3 3h-6a3 3 0 01-3-3V5.25a3 3 0 013-3h6a3 3 0 013 3V9A.75.75 0 0115 9V5.25a1.5 1.5 0 00-1.5-1.5h-6zm10.72 4.72a.75.75 0 011.06 0l3 3a.75.75 0 010 1.06l-3 3a.75.75 0 11-1.06-1.06l1.72-1.72H9a.75.75 0 010-1.5h10.94l-1.72-1.72a.75.75 0 010-1.06z" clipRule="evenodd" />
+      </svg>
+      </button>
       </div>
     </div>
   );
