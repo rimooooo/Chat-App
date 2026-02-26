@@ -14,15 +14,14 @@ export const sendMessage = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    // Insert the message
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       senderId: args.senderId,
       content: args.content,
       messageType: args.messageType,
+      isRead: false,
     });
 
-    // Update lastMessage in conversation
     await ctx.db.patch(args.conversationId, {
       lastMessage: messageId,
     });
@@ -42,7 +41,6 @@ export const getMessages = query({
       )
       .collect();
 
-    // Get sender details for each message
     const messagesWithSender = await Promise.all(
       messages.map(async (message) => {
         const sender = await ctx.db.get(message.senderId);
@@ -62,6 +60,7 @@ export const deleteMessage = mutation({
   },
 });
 
+// Typing indicator
 export const setTyping = mutation({
   args: {
     conversationId: v.id("conversations"),
@@ -90,6 +89,7 @@ export const setTyping = mutation({
   },
 });
 
+// Get typing users
 export const getTypingUsers = query({
   args: {
     conversationId: v.id("conversations"),
@@ -103,13 +103,54 @@ export const getTypingUsers = query({
       )
       .collect();
 
-    // Only show typing if typed in last 3 seconds and not current user
     const threeSecondsAgo = Date.now() - 3000;
 
     return typingUsers.filter(
       (t) =>
         t.userId !== args.currentUserId &&
         t.lastTyped > threeSecondsAgo
+    );
+  },
+});
+
+// Get unread message count
+export const getUnreadCount = query({
+  args: {
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversationId", (q) =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .collect();
+
+    return messages.filter(
+      (m) => m.senderId !== args.userId && !m.isRead
+    ).length;
+  },
+});
+
+// Mark all messages as read
+export const markMessagesAsRead = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversationId", (q) =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .collect();
+
+    await Promise.all(
+      messages
+        .filter((m) => m.senderId !== args.userId && !m.isRead)
+        .map((m) => ctx.db.patch(m._id, { isRead: true }))
     );
   },
 });

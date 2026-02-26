@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Users table - stores registered users
   users: defineTable({
     name: v.string(),
     email: v.string(),
@@ -12,7 +13,9 @@ export default defineSchema({
   })
     .index("by_clerkId", ["clerkId"])
     .index("by_email", ["email"]),
+    
 
+  // Conversations table - stores one-on-one conversations
   conversations: defineTable({
     participants: v.array(v.id("users")),
     isGroup: v.boolean(),
@@ -21,6 +24,7 @@ export default defineSchema({
     lastMessage: v.optional(v.id("messages")),
   }),
 
+  // Messages table - stores chat messages
   messages: defineTable({
     conversationId: v.id("conversations"),
     senderId: v.id("users"),
@@ -30,6 +34,7 @@ export default defineSchema({
       v.literal("image"),
       v.literal("video")
     ),
+    isRead: v.optional(v.boolean()),
   }).index("by_conversationId", ["conversationId"]),
 
   typing: defineTable({

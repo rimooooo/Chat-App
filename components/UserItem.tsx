@@ -5,8 +5,15 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
+import UnreadBadge from "./UnreadBadge";
 
-export default function UserItem({ user }: { user: Doc<"users"> }) {
+export default function UserItem({
+  user,
+  onSelect,
+}: {
+  user: Doc<"users">;
+  onSelect?: () => void;
+}) {
   const { user: clerkUser } = useUser();
   const router = useRouter();
 
@@ -16,7 +23,16 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
 
   const createConversation = useMutation(api.conversations.createConversation);
 
-  // Check online status using lastSeen
+  // Get existing conversation between these two users
+  const conversations = useQuery(
+    api.conversations.getConversations,
+    currentUser?._id ? { userId: currentUser._id } : "skip"
+  );
+
+  const existingConversation = conversations?.find((c) =>
+    c.participants.includes(user._id)
+  );
+
   const isOnline =
     user?.lastSeen !== undefined &&
     Date.now() - user.lastSeen < 60000;
@@ -29,6 +45,7 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
       participantTwo: user._id,
     });
 
+    onSelect?.();
     router.push(`/chat/${conversationId}`);
   };
 
@@ -44,7 +61,6 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
           alt={user.name}
           className="w-11 h-11 rounded-full object-cover"
         />
-        {/* Online indicator */}
         <span
           className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
             isOnline ? "bg-green-500" : "bg-gray-400"
@@ -59,6 +75,14 @@ export default function UserItem({ user }: { user: Doc<"users"> }) {
           {isOnline ? "🟢 Online" : "⚫ Offline"}
         </p>
       </div>
+
+      {/* Unread Badge */}
+      {currentUser?._id && existingConversation && (
+        <UnreadBadge
+          conversationId={existingConversation._id}
+          userId={currentUser._id}
+        />
+      )}
     </div>
   );
 }

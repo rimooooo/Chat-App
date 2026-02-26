@@ -13,14 +13,59 @@ interface MessageBubbleProps {
   isOwn: boolean;
 }
 
-export default function MessageBubble({ message, isOwn }: MessageBubbleProps) {
-  const time = new Date(message._creationTime).toLocaleTimeString([], {
+// Smart timestamp function
+function formatTimestamp(timestamp: number): string {
+  const messageDate = new Date(timestamp);
+  const now = new Date();
+
+  const isToday =
+    messageDate.getDate() === now.getDate() &&
+    messageDate.getMonth() === now.getMonth() &&
+    messageDate.getFullYear() === now.getFullYear();
+
+  const isThisYear = messageDate.getFullYear() === now.getFullYear();
+
+  const timeString = messageDate.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 
+  if (isToday) {
+    // Today → just time e.g. "2:34 PM"
+    return timeString;
+  } else if (isThisYear) {
+    // This year → date + time e.g. "Feb 15, 2:34 PM"
+    return (
+      messageDate.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+      }) +
+      ", " +
+      timeString
+    );
+  } else {
+    // Different year → full date + time e.g. "Feb 15 2024, 2:34 PM"
+    return (
+      messageDate.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }) +
+      ", " +
+      timeString
+    );
+  }
+}
+
+export default function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+  const timestamp = formatTimestamp(message._creationTime);
+
   return (
-    <div className={`flex items-end gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+    <div
+      className={`flex items-end gap-2 ${
+        isOwn ? "flex-row-reverse" : "flex-row"
+      }`}
+    >
       {/* Avatar */}
       {!isOwn && (
         <img
@@ -47,12 +92,14 @@ export default function MessageBubble({ message, isOwn }: MessageBubbleProps) {
             className="rounded-lg max-w-full"
           />
         )}
+
+        {/* Smart Timestamp */}
         <p
-          className={`text-xs mt-1 ${
+          className={`text-xs mt-1 text-right ${
             isOwn ? "text-blue-100" : "text-gray-400"
           }`}
         >
-          {time}
+          {timestamp}
         </p>
       </div>
     </div>

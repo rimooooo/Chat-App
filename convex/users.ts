@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+
 // Create user when they sign up via Clerk
 export const createUser = mutation({
   args: {
