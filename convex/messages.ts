@@ -44,7 +44,13 @@ export const getMessages = query({
     const messagesWithSender = await Promise.all(
       messages.map(async (message) => {
         const sender = await ctx.db.get(message.senderId);
-        return { ...message, sender };
+        return {
+          ...message,
+          isRead: message.isRead ?? false,
+          isDeleted: message.isDeleted ?? false,
+          reactions: message.reactions ?? [],
+          sender,
+        };
       })
     );
 
@@ -135,6 +141,7 @@ export const getUnreadCount = query({
     ).length;
   },
 });
+
 
 // Mark all messages as read
 export const markMessagesAsRead = mutation({
