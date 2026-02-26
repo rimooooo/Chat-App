@@ -56,7 +56,10 @@ export const getMessages = query({
 export const deleteMessage = mutation({
   args: { messageId: v.id("messages") },
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.messageId);
+    await ctx.db.patch(args.messageId, {
+      content: "This message was deleted",
+      isDeleted: true,
+    });
   },
 });
 
@@ -152,5 +155,35 @@ export const markMessagesAsRead = mutation({
         .filter((m) => m.senderId !== args.userId && !m.isRead)
         .map((m) => ctx.db.patch(m._id, { isRead: true }))
     );
+  },
+});
+
+// reaction function
+export const toggleReaction = mutation({
+  args: {
+    messageId: v.id("messages"),
+    userId: v.id("users"),
+    emoji: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message) return;
+
+    const reactions = message.reactions ?? [];
+
+    // Check if user already reacted with this emoji
+    const existingIndex = reactions.findIndex(
+      (r) => r.userId === args.userId && r.emoji === args.emoji
+    );
+
+    if (existingIndex !== -1) {
+      // Remove reaction
+      reactions.splice(existingIndex, 1);
+    } else {
+      // Add reaction
+      reactions.push({ userId: args.userId, emoji: args.emoji });
+    }
+
+    await ctx.db.patch(args.messageId, { reactions });
   },
 });

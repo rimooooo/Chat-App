@@ -7,6 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ChatWindow({
   conversationId,
@@ -18,6 +19,7 @@ export default function ChatWindow({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const router = useRouter();
 
   const currentUser = useQuery(
     api.users.getUserByClerkId,
@@ -48,9 +50,14 @@ export default function ChatWindow({
       : "skip"
   );
 
-  const otherUser = conversations?.find(
+  // Get current conversation details
+  const currentConversation = conversations?.find(
     (c) => c._id === conversationId
-  )?.otherUser;
+  );
+  const isGroup = currentConversation?.isGroup;
+  const groupName = currentConversation?.groupName;
+  const memberCount = currentConversation?.participants?.length;
+  const otherUser = currentConversation?.otherUser;
 
   const isOtherUserOnline =
     otherUser?.lastSeen !== undefined &&
@@ -61,14 +68,13 @@ export default function ChatWindow({
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const threshold = 100; // px from bottom
+    const threshold = 100;
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
 
     const atBottom = distanceFromBottom < threshold;
     setIsAtBottom(atBottom);
 
-    // Clear new messages badge when user scrolls to bottom
     if (atBottom) setHasNewMessages(false);
   };
 
@@ -77,11 +83,11 @@ export default function ChatWindow({
     if (!messages) return;
 
     if (isAtBottom) {
-      // User is at bottom — auto scroll
+
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       setHasNewMessages(false);
     } else {
-      // User scrolled up — show new message button
+
       setHasNewMessages(true);
     }
   }, [messages]);
@@ -96,7 +102,6 @@ export default function ChatWindow({
     });
   }, [conversationId, currentUser?._id, messages]);
 
-  // Scroll to bottom when clicking new messages button
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     setHasNewMessages(false);
@@ -105,33 +110,55 @@ export default function ChatWindow({
 
   return (
     <div className="flex-1 flex flex-col h-screen">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-3">
-        {otherUser ? (
-          <>
-            <div className="relative">
-              <img
-                src={otherUser.imageUrl}
-                alt={otherUser.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-              <span
-                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                  isOtherUserOnline ? "bg-green-500" : "bg-gray-400"
-                }`}
-              />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">{otherUser.name}</p>
-              <p className="text-xs text-gray-500">
-                {isOtherUserOnline ? "🟢 Online" : "⚫ Offline"}
-              </p>
-            </div>
-          </>
-        ) : (
-          <p className="text-gray-500">Loading...</p>
-        )}
-      </div>
+
+    {/* Header */}
+    <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-3">
+
+      {/* Back Button — mobile only */}
+      <button
+        onClick={() => router.push("/")}
+        className="md:hidden text-gray-500 hover:text-gray-700 mr-1"
+      >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+        <path fillRule="evenodd" d="M11.03 3.97a.75.75 0 010 1.06l-6.22 6.22H21a.75.75 0 010 1.5H4.81l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" />
+      </svg>
+      </button>
+
+      {isGroup ? (
+      <>
+        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+          {groupName?.[0]?.toUpperCase() ?? "G"}
+        </div>
+        <div>
+          <p className="font-semibold text-gray-800">{groupName}</p>
+          <p className="text-xs text-gray-500">{memberCount} members</p>
+        </div>
+      </>
+      ) : otherUser ? (
+      <>
+        <div className="relative">
+          <img
+            src={otherUser.imageUrl}
+            alt={otherUser.name}
+            className="w-10 h-10 rounded-full object-cover"
+          />
+          <span
+            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+              isOtherUserOnline ? "bg-green-500" : "bg-gray-400"
+            }`}
+          />
+        </div>
+        <div>
+          <p className="font-semibold text-gray-800">{otherUser.name}</p>
+          <p className="text-xs text-gray-500">
+            {isOtherUserOnline ? "🟢 Online" : "⚫ Offline"}
+          </p>
+        </div>
+      </>
+      ) : (
+        <p className="text-gray-500">Loading...</p>
+      )}
+    </div>
 
       {/* Messages Area */}
       <div
@@ -189,7 +216,7 @@ export default function ChatWindow({
         conversationId={conversationId as Id<"conversations">}
         senderId={currentUser?._id}
       />
-  
+
     </div>
   );
 }
