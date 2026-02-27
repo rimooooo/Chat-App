@@ -21,9 +21,13 @@ export default function MessageInput({
   const setTyping = useMutation(api.messages.setTyping);
 
   const handleSend = async () => {
-  if (!message.trim()) return;
-  if (!senderId || !conversationId) return;
-  if (senderId === "" || conversationId === "") return;
+    console.log("Sending with:", { conversationId, senderId, message });
+    if (!message.trim()) return;
+    if (!senderId || !conversationId) {
+    console.error("Missing senderId or conversationId!");
+    return;
+    }
+    if (senderId === "" || conversationId === "") return;
 
   setSending(true);
   setError(false);

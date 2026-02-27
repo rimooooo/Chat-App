@@ -19,9 +19,15 @@ export const sendMessage = mutation({
     if (args.conversationId === "" || args.senderId === "") return null;
     if (!args.content || args.content.trim() === "") return null;
 
+    // Verify conversation exists
+    const conversation = await ctx.db.get(
+      args.conversationId as Id<"conversations">
+    );
+    if (!conversation) return null;
+
     const messageId = await ctx.db.insert("messages", {
-      conversationId: args.conversationId as Id<"conversations">,
-      senderId: args.senderId as Id<"users">,
+      conversationId: args.conversationId,
+      senderId: args.senderId,
       content: args.content,
       messageType: args.messageType,
       isRead: false,
@@ -230,7 +236,7 @@ export const toggleReaction = mutation({
 
       reactions.splice(existingIndex, 1);
     } else {
-      
+
       reactions.push({ userId: args.userId, emoji: args.emoji });
     }
 
