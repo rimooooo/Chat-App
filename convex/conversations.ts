@@ -4,33 +4,31 @@ import { Id } from "./_generated/dataModel";
 
 export const createConversation = mutation({
   args: {
-    participantOne: v.id("users"),
-    participantTwo: v.id("users"),
+    participantOne: v.string(),
+    participantTwo: v.string(),
   },
   handler: async (ctx, args) => {
-    // Check if conversation already exists
-    const existing = await ctx.db
-      .query("conversations")
-      .collect();
+    if (!args.participantOne || !args.participantTwo) return null;
+
+    const existing = await ctx.db.query("conversations").collect();
 
     const existingConversation = existing.find(
       (conv) =>
         !conv.isGroup &&
-        conv.participants.includes(args.participantOne) &&
-        conv.participants.includes(args.participantTwo)
+        conv.participants.map((p: any) => p.toString()).includes(args.participantOne) &&
+        conv.participants.map((p: any) => p.toString()).includes(args.participantTwo)
     );
 
     if (existingConversation) {
-      return existingConversation._id;
+      return existingConversation._id.toString();
     }
 
-    // Create new conversation
     const conversationId = await ctx.db.insert("conversations", {
       participants: [args.participantOne, args.participantTwo],
       isGroup: false,
     });
 
-    return conversationId;
+    return conversationId.toString();
   },
 });
 
@@ -44,41 +42,46 @@ export const getConversations = query({
       .collect();
 
     const myConversations = allConversations.filter((conv) =>
-      conv.participants.includes(args.userId)
+      conv.participants.map((p: any) => p.toString()).includes(args.userId)
     );
 
     const result = await Promise.all(
       myConversations.map(async (conv) => {
-        const otherUserId = conv.participants.find(
-          (p) => p !== args.userId
-        );
+        const otherUserId = conv.participants
+          .map((p: any) => p.toString())
+          .find((p: string) => p !== args.userId);
 
         let otherUser = null;
         if (!conv.isGroup && otherUserId) {
-          const user = await ctx.db.get(otherUserId as Id<"users">);
+          const user = await ctx.db.get(otherUserId as any);
           if (user && "name" in user) {
-            otherUser = user;
+            otherUser = {
+              _id: user._id.toString(),
+              name: (user as any).name,
+              imageUrl: (user as any).imageUrl,
+              lastSeen: (user as any).lastSeen,
+              isOnline: (user as any).isOnline,
+            };
           }
         }
 
-        // Get last message safely
         let lastMessageContent = "";
         if (conv.lastMessage) {
-          const msg = await ctx.db.get(conv.lastMessage as Id<"messages">);
+          const msg = await ctx.db.get(conv.lastMessage as any);
           if (msg && "content" in msg) {
-            lastMessageContent = msg.isDeleted
+            lastMessageContent = (msg as any).isDeleted
               ? "This message was deleted"
-              : msg.content;
+              : (msg as any).content;
           }
         }
 
         return {
-          _id: conv._id,
+          _id: conv._id.toString(),
           _creationTime: conv._creationTime,
           isGroup: conv.isGroup,
           groupName: conv.groupName,
           groupImage: conv.groupImage,
-          participants: conv.participants,
+          participants: conv.participants.map((p: any) => p.toString()),
           lastMessageTime: conv._creationTime,
           lastMessage: lastMessageContent,
           otherUser,
@@ -99,45 +102,47 @@ export const getConversationById = query({
     if (!args.conversationId || !args.currentUserId) return null;
     if (args.conversationId === "" || args.currentUserId === "") return null;
 
-    const conv = await ctx.db.get(
-      args.conversationId as Id<"conversations">
-    );
-
+    const conv = await ctx.db.get(args.conversationId as any);
     if (!conv) return null;
-
-    // Type guard — make sure it's a conversation not another table
     if (!("participants" in conv)) return null;
 
-    // Find the other user in 1-on-1 chat
-    const otherUserId = conv.participants.find(
+    const participants = conv.participants.map((p: any) => p.toString());
+
+    const otherUserId = participants.find(
       (p: string) => p !== args.currentUserId
     );
 
-    const otherUser =
-      !conv.isGroup && otherUserId
-        ? await ctx.db.get(otherUserId as Id<"users">)
-        : null;
-
-    // Type guard for otherUser
-    const safeOtherUser =
-      otherUser && "name" in otherUser ? otherUser : null;
+    let otherUser = null;
+    if (!conv.isGroup && otherUserId) {
+      const user = await ctx.db.get(otherUserId as any);
+      if (user && "name" in user) {
+        otherUser = {
+          _id: user._id.toString(),
+          name: (user as any).name,
+          imageUrl: (user as any).imageUrl,
+          lastSeen: (user as any).lastSeen,
+          isOnline: (user as any).isOnline,
+        };
+      }
+    }
 
     return {
-      ...conv,
-      otherUser: safeOtherUser,
-      memberCount: conv.participants.length,
+      _id: conv._id.toString(),
+      isGroup: conv.isGroup,
+      groupName: conv.groupName ?? null,
+      memberCount: participants.length,
+      otherUser,
     };
   },
 });
 
 export const createGroupConversation = mutation({
   args: {
-    participants: v.array(v.id("users")),
+    participants: v.array(v.string()),
     groupName: v.string(),
-    creatorId: v.id("users"),
+    creatorId: v.string(),
   },
   handler: async (ctx, args) => {
-    // Remove duplicates safely
     const uniqueParticipants = Array.from(
       new Set([...args.participants, args.creatorId])
     );
@@ -152,31 +157,33 @@ export const createGroupConversation = mutation({
       groupName: args.groupName,
     });
 
-    return conversationId;
+    return conversationId.toString();
   },
 });
 
 export const getGroupConversations = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.string() },
   handler: async (ctx, args) => {
+    if (!args.userId || args.userId === "") return [];
+
     const allConversations = await ctx.db
       .query("conversations")
       .collect();
 
     const myGroups = allConversations.filter(
-      (conv) => conv.isGroup && conv.participants.some((id) => id === args.userId)
+      (conv) =>
+        conv.isGroup &&
+        conv.participants.map((p: any) => p.toString()).includes(args.userId)
     );
 
     return await Promise.all(
       myGroups.map(async (conv) => {
-        const lastMessage = conv.lastMessage
-          ? await ctx.db.get(conv.lastMessage as any)
-          : null;
-
         return {
-          ...conv,
+          _id: conv._id.toString(),
+          isGroup: conv.isGroup,
+          groupName: conv.groupName,
           memberCount: conv.participants.length,
-          lastMessage,
+          participants: conv.participants.map((p: any) => p.toString()),
         };
       })
     );
