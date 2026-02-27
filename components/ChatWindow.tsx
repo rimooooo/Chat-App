@@ -20,29 +20,32 @@ export default function ChatWindow({
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const router = useRouter();
+  const markAsRead = useMutation(api.messages.markMessagesAsRead);
+
+    const messages = useQuery(
+      api.messages.getMessages,
+      conversationId
+      ? { conversationId: conversationId as Id<"conversations"> }
+      : "skip"
+    );
 
   const currentUser = useQuery(
     api.users.getUserByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
-
-  const messages = useQuery(
-    api.messages.getMessages,
-    conversationId
-      ? { conversationId: conversationId as Id<"conversations"> }
-      : "skip"
+    user?.id ? { clerkId: user.id } 
+    : "skip"
   );
 
   const conversations = useQuery(
     api.conversations.getConversations,
-    currentUser?._id ? { userId: currentUser._id } : "skip"
+    currentUser?._id ? 
+    { userId: currentUser._id } 
+    : "skip"
   );
 
-  const markAsRead = useMutation(api.messages.markMessagesAsRead);
 
   const typingUsers = useQuery(
     api.messages.getTypingUsers,
-    conversationId && currentUser?._id
+    conversationId && conversationId.length > 0 && currentUser?._id 
       ? {
           conversationId: conversationId as Id<"conversations">,
           currentUserId: currentUser._id,
@@ -94,7 +97,7 @@ export default function ChatWindow({
 
   // Mark as read when conversation opens
   useEffect(() => {
-  if (!conversationId || !currentUser?._id) return;
+  if (!conversationId || conversationId.length === 0 || !currentUser?._id) return;
 
   const mark = async () => {
     try {
@@ -103,8 +106,7 @@ export default function ChatWindow({
         userId: currentUser._id as Id<"users">,
       });
     } catch (err) {
-      // Silently fail — not critical
-      console.log("markAsRead failed silently:", err);
+      console.log("markAsRead failed:", err);
     }
   };
 

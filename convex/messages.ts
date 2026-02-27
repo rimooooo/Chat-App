@@ -34,6 +34,8 @@ export const sendMessage = mutation({
 export const getMessages = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
+    if (!args.conversationId) return [];
+
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) =>
@@ -129,6 +131,8 @@ export const getUnreadCount = query({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    if (!args.conversationId || !args.userId) return 0;
+
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) =>
@@ -226,5 +230,24 @@ export const fixOldMessages = mutation({
     );
 
     return `Fixed ${messages.length} messages`;
+  },
+});
+
+export const migrateOldMessages = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const messages = await ctx.db.query("messages").collect();
+
+    let count = 0;
+    for (const message of messages) {
+      await ctx.db.patch(message._id, {
+        isRead: message.isRead ?? false,
+        isDeleted: message.isDeleted ?? false,
+        reactions: message.reactions ?? [],
+      });
+      count++;
+    }
+
+    return `Migrated ${count} messages successfully`;
   },
 });

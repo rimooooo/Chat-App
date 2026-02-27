@@ -178,7 +178,7 @@ export default function Sidebar() {
                     : "Start a conversation"}
                   </p>
                 </div>
-                
+
                 {currentUser?._id && (
                   <UnreadCount
                     conversationId={conv._id}
@@ -310,10 +310,12 @@ function UnreadCount({
   conversationId: Id<"conversations">;
   userId: Id<"users">;
 }) {
-  const count = useQuery(api.messages.getUnreadCount, {
-    conversationId,
-    userId,
-  });
+  const count = useQuery(
+    api.messages.getUnreadCount,
+    conversationId && userId
+      ? { conversationId, userId }
+      : "skip"
+  );
 
   if (!count || count === 0) return null;
 
