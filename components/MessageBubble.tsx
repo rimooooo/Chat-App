@@ -10,12 +10,12 @@ const EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
 interface MessageBubbleProps {
   message: {
-    _id: Id<"messages">;
+    _id: string;
     content: string;
     messageType: string;
-    senderId: Id<"users">;
+    senderId: string;
     isDeleted?: boolean;
-    reactions?: { userId: Id<"users">; emoji: string }[];
+    reactions?: { userId: string; emoji: string }[];
     sender?: {
       name: string;
       imageUrl: string;
@@ -81,7 +81,7 @@ export default function MessageBubble({ message, isOwn }: MessageBubbleProps) {
 
   const handleDelete = async () => {
     try {
-      await deleteMessage({ messageId: message._id });
+      await deleteMessage({ messageId: message._id as any });
       setShowActions(false);
     } catch {
       setSendError(true);
@@ -92,8 +92,8 @@ export default function MessageBubble({ message, isOwn }: MessageBubbleProps) {
     if (!currentUser) return;
     try {
       await toggleReaction({
-        messageId: message._id,
-        userId: currentUser._id,
+        messageId: message._id as any,
+        userId: currentUser._id as any,
         emoji,
       });
     } catch {

@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 export const createConversation = mutation({
   args: {
@@ -73,6 +74,46 @@ export const getConversations = query({
 
     // Sort by most recent message first
     return result.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
+  },
+});
+
+export const getConversationById = query({
+  args: {
+    conversationId: v.string(),
+    currentUserId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!args.conversationId || !args.currentUserId) return null;
+    if (args.conversationId === "" || args.currentUserId === "") return null;
+
+    const conv = await ctx.db.get(
+      args.conversationId as Id<"conversations">
+    );
+
+    if (!conv) return null;
+
+    // Type guard — make sure it's a conversation not another table
+    if (!("participants" in conv)) return null;
+
+    // Find the other user in 1-on-1 chat
+    const otherUserId = conv.participants.find(
+      (p: string) => p !== args.currentUserId
+    );
+
+    const otherUser =
+      !conv.isGroup && otherUserId
+        ? await ctx.db.get(otherUserId as Id<"users">)
+        : null;
+
+    // Type guard for otherUser
+    const safeOtherUser =
+      otherUser && "name" in otherUser ? otherUser : null;
+
+    return {
+      ...conv,
+      otherUser: safeOtherUser,
+      memberCount: conv.participants.length,
+    };
   },
 });
 

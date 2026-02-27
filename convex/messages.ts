@@ -52,7 +52,7 @@ export const getMessages = query({
 
     const messagesWithSender = await Promise.all(
       messages.map(async (message) => {
-        const sender = await ctx.db.get(message.senderId);
+        const sender = await ctx.db.get(message.senderId as Id<"users">);
         return {
           ...message,
           isRead: message.isRead ?? false,
@@ -69,9 +69,10 @@ export const getMessages = query({
 
 // Delete a message
 export const deleteMessage = mutation({
-  args: { messageId: v.id("messages") },
+  args: { messageId: v.string() },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.messageId, {
+    if (!args.messageId || args.messageId === "") return;
+    await ctx.db.patch(args.messageId as Id<"messages">, {
       content: "This message was deleted",
       isDeleted: true,
     });
@@ -206,32 +207,34 @@ export const markMessagesAsRead = mutation({
 });
 
 // reaction function
+
 export const toggleReaction = mutation({
   args: {
-    messageId: v.id("messages"),
-    userId: v.id("users"),
+    messageId: v.string(),
+    userId: v.string(),
     emoji: v.string(),
   },
   handler: async (ctx, args) => {
-    const message = await ctx.db.get(args.messageId);
+    if (!args.messageId || !args.userId) return;
+
+    const message = await ctx.db.get(args.messageId as Id<"messages">);
     if (!message) return;
 
     const reactions = message.reactions ?? [];
 
-    // Check if user already reacted with this emoji
     const existingIndex = reactions.findIndex(
       (r) => r.userId === args.userId && r.emoji === args.emoji
     );
 
     if (existingIndex !== -1) {
-      // Remove reaction
+
       reactions.splice(existingIndex, 1);
     } else {
-      // Add reaction
+      
       reactions.push({ userId: args.userId, emoji: args.emoji });
     }
 
-    await ctx.db.patch(args.messageId, { reactions });
+    await ctx.db.patch(args.messageId as Id<"messages">, { reactions });
   },
 });
 

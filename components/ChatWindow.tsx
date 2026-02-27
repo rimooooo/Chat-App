@@ -51,14 +51,25 @@ export default function ChatWindow({
       : "skip"
   );
 
-  // Get current conversation details
-  const currentConversation = conversations?.find(
-    (c) => c._id === conversationId
+  const directConversation = useQuery(
+  api.conversations.getConversationById,
+  isValidId && currentUser?._id
+    ? {
+        conversationId,
+        currentUserId: currentUser._id as string,
+      }
+    : "skip"
   );
-  const isGroup = currentConversation?.isGroup;
-  const groupName = currentConversation?.groupName;
-  const memberCount = currentConversation?.participants?.length;
-  const otherUser = currentConversation?.otherUser;
+
+  // Get current conversation details
+  // const currentConversation = conversations?.find(
+  //   (c) => c._id === conversationId
+  // );
+
+  const isGroup = directConversation?.isGroup;
+  const groupName = directConversation?.groupName;
+  const memberCount = directConversation?.memberCount;
+  const otherUser = directConversation?.otherUser;
 
   const isOtherUserOnline =
     otherUser?.lastSeen !== undefined &&
@@ -161,7 +172,14 @@ export default function ChatWindow({
             </div>
           </>
         ) : (
-          <p className="text-gray-500">Loading...</p>
+          // Show skeleton while loading instead of "Loading..."
+          <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+            <div className="flex flex-col gap-2">
+              <div className="w-32 h-3 bg-gray-200 rounded animate-pulse" />
+              <div className="w-20 h-2 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
         )}
       </div>
 
@@ -181,11 +199,18 @@ export default function ChatWindow({
           </div>
         ) : (
           messages.map((message) => (
-            <MessageBubble
-              key={message._id}
-              message={message}
-              isOwn={message.senderId === currentUser?._id}
-            />
+          <MessageBubble
+          key={message._id}
+          message={{
+            ...message,
+            senderId: message.senderId as string,
+              reactions: message.reactions?.map(r => ({
+              userId: r.userId as string,
+              emoji: r.emoji,
+              })) ?? [],
+            }}
+            isOwn={message.senderId === currentUser?._id}
+          />
           ))
         )}
 
