@@ -22,7 +22,8 @@ export default defineSchema({
     groupName: v.optional(v.string()),
     groupImage: v.optional(v.string()),
     lastMessage: v.optional(v.id("messages")),
-  }),
+  })
+    .index("by_isGroup", ["isGroup"]),           // ADDed THIS LINE
 
   // messages table
   messages: defineTable({

@@ -7,22 +7,23 @@ export const createConversation = mutation({
     participantTwo: v.id("users"),
   },
   handler: async (ctx, args) => {
+    // Check if conversation already exists
     const existing = await ctx.db
       .query("conversations")
-      .filter((q) =>
-        q.or(
-          q.and(
-            q.eq(q.field("participants"), [args.participantOne, args.participantTwo]),
-          ),
-          q.and(
-            q.eq(q.field("participants"), [args.participantTwo, args.participantOne]),
-          )
-        )
-      )
-      .first();
+      .collect();
 
-    if (existing) return existing._id;
+    const existingConversation = existing.find(
+      (conv) =>
+        !conv.isGroup &&
+        conv.participants.includes(args.participantOne) &&
+        conv.participants.includes(args.participantTwo)
+    );
 
+    if (existingConversation) {
+      return existingConversation._id;
+    }
+
+    // Create new conversation
     const conversationId = await ctx.db.insert("conversations", {
       participants: [args.participantOne, args.participantTwo],
       isGroup: false,
@@ -35,16 +36,17 @@ export const createConversation = mutation({
 export const getConversations = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-
+    // Query all conversations
     const allConversations = await ctx.db
       .query("conversations")
       .collect();
-    
-      const myConversations = allConversations.filter((conv) =>
+
+    // Filter to get only conversations where user is a participant
+    const myConversations = allConversations.filter((conv) =>
       conv.participants.includes(args.userId)
     );
 
-    
+    // Get other user and last message for each conversation
     const result = await Promise.all(
       myConversations.map(async (conv) => {
         const otherUserId = conv.participants.find(

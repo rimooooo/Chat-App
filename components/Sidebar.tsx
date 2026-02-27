@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import CreateGroupModal from "./CreateGroupModal";
 import { UserButton } from "@clerk/nextjs";
+import { useMutation } from "convex/react";
 
 export default function Sidebar() {
   const { user } = useUser();
@@ -14,6 +15,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const createConversation = useMutation(api.conversations.createConversation);
 
   const currentUser = useQuery(
     api.users.getUserByClerkId,
@@ -191,7 +193,15 @@ export default function Sidebar() {
                 return (
                   <div
                     key={u._id}
-                    onClick={() => router.push(`/chat/${u._id}`)}
+                    onClick={async () => {
+                      if (!currentUser) return;
+                      // Create conversation first then navigate
+                      const conversationId = await createConversation({
+                        participantOne: currentUser._id,
+                        participantTwo: u._id,
+                      });
+                      router.push(`/chat/${conversationId}`);
+                    }}
                     className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
                   >
                     <div className="relative flex-shrink-0">
