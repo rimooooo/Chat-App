@@ -35,44 +35,57 @@ export const createConversation = mutation({
 });
 
 export const getConversations = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.string() },
   handler: async (ctx, args) => {
-    // Query all conversations
+    if (!args.userId || args.userId === "") return [];
+
     const allConversations = await ctx.db
       .query("conversations")
       .collect();
 
-    // Filter to get only conversations where user is a participant
     const myConversations = allConversations.filter((conv) =>
       conv.participants.includes(args.userId)
     );
 
-    // Get other user and last message for each conversation
     const result = await Promise.all(
       myConversations.map(async (conv) => {
         const otherUserId = conv.participants.find(
           (p) => p !== args.userId
         );
 
-        const otherUser =
-          !conv.isGroup && otherUserId
-            ? await ctx.db.get(otherUserId)
-            : null;
+        let otherUser = null;
+        if (!conv.isGroup && otherUserId) {
+          const user = await ctx.db.get(otherUserId as Id<"users">);
+          if (user && "name" in user) {
+            otherUser = user;
+          }
+        }
 
-        const lastMessage = conv.lastMessage
-          ? await ctx.db.get(conv.lastMessage)
-          : null;
+        // Get last message safely
+        let lastMessageContent = "";
+        if (conv.lastMessage) {
+          const msg = await ctx.db.get(conv.lastMessage as Id<"messages">);
+          if (msg && "content" in msg) {
+            lastMessageContent = msg.isDeleted
+              ? "This message was deleted"
+              : msg.content;
+          }
+        }
 
         return {
-          ...conv,
+          _id: conv._id,
+          _creationTime: conv._creationTime,
+          isGroup: conv.isGroup,
+          groupName: conv.groupName,
+          groupImage: conv.groupImage,
+          participants: conv.participants,
+          lastMessageTime: conv._creationTime,
+          lastMessage: lastMessageContent,
           otherUser,
-          lastMessage,
-          lastMessageTime: lastMessage?._creationTime ?? conv._creationTime,
         };
       })
     );
 
-    // Sort by most recent message first
     return result.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
   },
 });
@@ -157,7 +170,7 @@ export const getGroupConversations = query({
     return await Promise.all(
       myGroups.map(async (conv) => {
         const lastMessage = conv.lastMessage
-          ? await ctx.db.get(conv.lastMessage)
+          ? await ctx.db.get(conv.lastMessage as any)
           : null;
 
         return {

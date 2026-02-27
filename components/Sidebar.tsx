@@ -133,7 +133,7 @@ export default function Sidebar() {
             const isGroup = conv.isGroup;
             const name = isGroup ? conv.groupName : conv.otherUser?.name;
             const imageUrl = conv.otherUser?.imageUrl;
-            const lastMsg = conv.lastMessage?.content ?? "";
+            const lastMsg = conv.lastMessage ?? "";
             const isOnline =
               !isGroup &&
               conv.otherUser?.lastSeen !== undefined &&
