@@ -1,13 +1,12 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import CreateGroupModal from "./CreateGroupModal";
-import { UserButton } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
 
 export default function Sidebar() {
   const { user } = useUser();
@@ -15,23 +14,22 @@ export default function Sidebar() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const createConversation = useMutation(api.conversations.createConversation);
 
   const currentUser = useQuery(
     api.users.getUserByClerkId,
     user?.id ? { clerkId: user.id } : "skip"
   );
 
-  // Get ALL conversations (already sorted by latest message)
   const conversations = useQuery(
     api.conversations.getConversations,
     currentUser?._id ? { userId: currentUser._id } : "skip"
   );
 
-  // Also get users who have NO conversation yet
   const allUsers = useQuery(api.users.getUsers, {
     clerkId: user?.id ?? "",
   });
+
+  const createConversation = useMutation(api.conversations.createConversation);
 
   const handleLogout = async () => {
     await signOut();
@@ -60,6 +58,21 @@ export default function Sidebar() {
   const filteredNewUsers = usersWithoutConversation?.filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleUserClick = async (userId: Id<"users">) => {
+    if (!currentUser?._id) return;
+    try {
+      // This creates OR returns existing conversation
+      const conversationId = await createConversation({
+        participantOne: currentUser._id,
+        participantTwo: userId,
+      });
+      // conversationId is always a conversations table ID
+      router.push(`/chat/${conversationId}`);
+    } catch (error) {
+      console.error("Failed to open conversation:", error);
+    }
+  };
 
   return (
     <>
@@ -115,7 +128,7 @@ export default function Sidebar() {
         {/* List */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* Existing Conversations — sorted by latest message */}
+          {/* Existing Conversations */}
           {filteredConversations?.map((conv) => {
             const isGroup = conv.isGroup;
             const name = isGroup ? conv.groupName : conv.otherUser?.name;
@@ -132,7 +145,6 @@ export default function Sidebar() {
                 onClick={() => router.push(`/chat/${conv._id}`)}
                 className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
               >
-                {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {isGroup ? (
                     <div className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">
@@ -154,21 +166,19 @@ export default function Sidebar() {
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{name}</p>
                   <p className="text-xs text-gray-500 truncate">
                     {lastMsg
-                      ? lastMsg.length > 30
-                        ? lastMsg.substring(0, 30) + "..."
-                        : lastMsg
-                      : isGroup
-                      ? `${conv.participants?.length} members`
-                      : "Start a conversation"}
+                    ? lastMsg.length > 30
+                    ? lastMsg.substring(0, 30) + "..."
+                    : lastMsg
+                    : isGroup
+                    ? `${conv.participants?.length} members`
+                    : "Start a conversation"}
                   </p>
                 </div>
-
-                {/* Unread Badge */}
+                
                 {currentUser?._id && (
                   <UnreadCount
                     conversationId={conv._id}
@@ -180,48 +190,47 @@ export default function Sidebar() {
           })}
 
           {/* New Users — no conversation yet */}
-          {filteredNewUsers?.map((u) => {
-            const isOnline =
-              u?.lastSeen !== undefined &&
-              Date.now() - u.lastSeen < 60000;
+          {filteredNewUsers && filteredNewUsers.length > 0 && (
+            <>
+              <p className="text-xs text-gray-400 px-4 py-2 uppercase tracking-wider font-medium">
+                New Chats
+              </p>
+              {filteredNewUsers.map((u) => {
+                const isOnline =
+                  u?.lastSeen !== undefined &&
+                  Date.now() - u.lastSeen < 60000;
 
-            return (
-            <div
-                key={u._id}
-                onClick={async () => {
-                if (!currentUser?._id) return;
-                try {
-                  // Create conversation FIRST then navigate
-                  const conversationId = await createConversation({
-                    participantOne: currentUser._id,
-                    participantTwo: u._id,
-                  });
-                  router.push(`/chat/${conversationId}`);
-                } catch (error) {
-                  console.error("Failed to create conversation:", error);
-                }
-                }}
-                className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
-              >
-              <div className="relative flex-shrink-0">
-                <img
-                src={u.imageUrl}
-                alt={u.name}
-                className="w-11 h-11 rounded-full object-cover"
-                />
-                <span
-                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                isOnline ? "bg-green-500" : "bg-gray-400"
-                }`}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 truncate">{u.name}</p>
-                <p className="text-xs text-gray-500">Start a conversation</p>
-              </div>
-            </div>
-          );
-        })}
+                return (
+                  <div
+                    key={u._id}
+                    onClick={() => handleUserClick(u._id)}
+                    className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+                  >
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={u.imageUrl}
+                        alt={u.name}
+                        className="w-11 h-11 rounded-full object-cover"
+                      />
+                      <span
+                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                          isOnline ? "bg-green-500" : "bg-gray-400"
+                        }`}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-800 truncate">
+                        {u.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Start a conversation
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
 
           {/* Empty State */}
           {filteredConversations?.length === 0 &&
@@ -256,10 +265,12 @@ export default function Sidebar() {
 
         {/* Bottom User Info */}
         <div className="p-4 border-t border-gray-200 flex items-center gap-3">
-          <UserButton afterSignOutUrl="/sign-in" />
+          <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+            {user?.fullName?.[0]?.toUpperCase() ?? "U"}
+          </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-800">
-             {user?.fullName}
+              {user?.fullName}
             </p>
             <p className="text-xs text-green-500">Online</p>
           </div>
@@ -268,13 +279,20 @@ export default function Sidebar() {
             className="text-gray-400 hover:text-red-500 transition-colors"
             title="Logout"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-              <path fillRule="evenodd" d="M7.5 3.75A1.5 1.5 0 006 5.25v13.5a1.5 1.5 0 001.5 1.5h6a1.5 1.5 0 001.5-1.5V15a.75.75 0 011.5 0v3.75a3 3 0 01-3 3h-6a3 3 0 01-3-3V5.25a3 3 0 013-3h6a3 3 0 013 3V9A.75.75 0 0115 9V5.25a1.5 1.5 0 00-1.5-1.5h-6zm10.72 4.72a.75.75 0 011.06 0l3 3a.75.75 0 010 1.06l-3 3a.75.75 0 11-1.06-1.06l1.72-1.72H9a.75.75 0 010-1.5h10.94l-1.72-1.72a.75.75 0 010-1.06z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-5 h-5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M7.5 3.75A1.5 1.5 0 006 5.25v13.5a1.5 1.5 0 001.5 1.5h6a1.5 1.5 0 001.5-1.5V15a.75.75 0 011.5 0v3.75a3 3 0 01-3 3h-6a3 3 0 01-3-3V5.25a3 3 0 013-3h6a3 3 0 013 3V9A.75.75 0 0115 9V5.25a1.5 1.5 0 00-1.5-1.5h-6zm10.72 4.72a.75.75 0 011.06 0l3 3a.75.75 0 010 1.06l-3 3a.75.75 0 11-1.06-1.06l1.72-1.72H9a.75.75 0 010-1.5h10.94l-1.72-1.72a.75.75 0 010-1.06z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
         </div>
-        
-
       </div>
 
       {showGroupModal && (
@@ -289,8 +307,8 @@ function UnreadCount({
   conversationId,
   userId,
 }: {
-  conversationId: any;
-  userId: any;
+  conversationId: Id<"conversations">;
+  userId: Id<"users">;
 }) {
   const count = useQuery(api.messages.getUnreadCount, {
     conversationId,
