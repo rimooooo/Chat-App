@@ -180,55 +180,48 @@ export default function Sidebar() {
           })}
 
           {/* New Users — no conversation yet */}
-          {filteredNewUsers && filteredNewUsers.length > 0 && (
-            <>
-              <p className="text-xs text-gray-400 px-4 py-2 uppercase tracking-wider font-medium">
-                New Chats
-              </p>
-              {filteredNewUsers.map((u) => {
-                const isOnline =
-                  u?.lastSeen !== undefined &&
-                  Date.now() - u.lastSeen < 60000;
+          {filteredNewUsers?.map((u) => {
+            const isOnline =
+              u?.lastSeen !== undefined &&
+              Date.now() - u.lastSeen < 60000;
 
-                return (
-                  <div
-                    key={u._id}
-                    onClick={async () => {
-                      if (!currentUser) return;
-                      // Create conversation first then navigate
-                      const conversationId = await createConversation({
-                        participantOne: currentUser._id,
-                        participantTwo: u._id,
-                      });
-                      router.push(`/chat/${conversationId}`);
-                    }}
-                    className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
-                  >
-                    <div className="relative flex-shrink-0">
-                      <img
-                        src={u.imageUrl}
-                        alt={u.name}
-                        className="w-11 h-11 rounded-full object-cover"
-                      />
-                      <span
-                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                          isOnline ? "bg-green-500" : "bg-gray-400"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-800 truncate">
-                        {u.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Start a conversation
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
+            return (
+            <div
+                key={u._id}
+                onClick={async () => {
+                if (!currentUser?._id) return;
+                try {
+                  // Create conversation FIRST then navigate
+                  const conversationId = await createConversation({
+                    participantOne: currentUser._id,
+                    participantTwo: u._id,
+                  });
+                  router.push(`/chat/${conversationId}`);
+                } catch (error) {
+                  console.error("Failed to create conversation:", error);
+                }
+                }}
+                className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+              >
+              <div className="relative flex-shrink-0">
+                <img
+                src={u.imageUrl}
+                alt={u.name}
+                className="w-11 h-11 rounded-full object-cover"
+                />
+                <span
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                isOnline ? "bg-green-500" : "bg-gray-400"
+                }`}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-800 truncate">{u.name}</p>
+                <p className="text-xs text-gray-500">Start a conversation</p>
+              </div>
+            </div>
+          );
+        })}
 
           {/* Empty State */}
           {filteredConversations?.length === 0 &&

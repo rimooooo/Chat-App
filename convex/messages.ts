@@ -150,18 +150,26 @@ export const markMessagesAsRead = mutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_conversationId", (q) =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .collect();
+    try {
+      const messages = await ctx.db
+        .query("messages")
+        .withIndex("by_conversationId", (q) =>
+          q.eq("conversationId", args.conversationId)
+        )
+        .collect();
 
-    await Promise.all(
-      messages
-        .filter((m) => m.senderId !== args.userId && !m.isRead)
-        .map((m) => ctx.db.patch(m._id, { isRead: true }))
-    );
+      const unreadMessages = messages.filter(
+        (m) => m.senderId !== args.userId && !m.isRead
+      );
+
+      await Promise.all(
+        unreadMessages.map((m) =>
+          ctx.db.patch(m._id, { isRead: true })
+        )
+      );
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
   },
 });
 
@@ -192,5 +200,24 @@ export const toggleReaction = mutation({
     }
 
     await ctx.db.patch(args.messageId, { reactions });
+  },
+});
+
+export const fixOldMessages = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const messages = await ctx.db.query("messages").collect();
+
+    await Promise.all(
+      messages.map((m) =>
+        ctx.db.patch(m._id, {
+          isRead: m.isRead ?? false,
+          isDeleted: m.isDeleted ?? false,
+          reactions: m.reactions ?? [],
+        })
+      )
+    );
+
+    return `Fixed ${messages.length} messages`;
   },
 });

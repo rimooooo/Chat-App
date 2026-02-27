@@ -93,13 +93,20 @@ export default function ChatWindow({
   }, [messages]);
 
   // Mark as read when conversation opens
-  useEffect(() => {
-    if (!conversationId || !currentUser?._id) return;
+useEffect(() => {
+  if (!conversationId || !currentUser?._id) return;
 
-    markAsRead({
-      conversationId: conversationId as Id<"conversations">,
-      userId: currentUser._id,
-    });
+  const mark = async () => {
+    try {
+      await markAsRead({
+        conversationId: conversationId as Id<"conversations">,
+        userId: currentUser._id as Id<"users">,
+      });
+    } catch (error) {
+      console.log("Mark as read failed:", error);
+    }
+  };
+  mark();
   }, [conversationId, currentUser?._id, messages]);
 
   const scrollToBottom = () => {
