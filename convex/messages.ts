@@ -110,8 +110,8 @@ export const setTyping = mutation({
         await ctx.db.patch(existing._id, { lastTyped: Date.now() });
       } else {
         await ctx.db.insert("typing", {
-          conversationId: args.conversationId as Id<"conversations">,
-          userId: args.userId as Id<"users">,
+          conversationId: args.conversationId,
+          userId: args.userId,
           lastTyped: Date.now(),
         });
       }
