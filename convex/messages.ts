@@ -75,28 +75,35 @@ export const deleteMessage = mutation({
 // Typing indicator
 export const setTyping = mutation({
   args: {
-    conversationId: v.id("conversations"),
-    userId: v.id("users"),
+    conversationId: v.string(),
+    userId: v.string(),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("typing")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("conversationId"), args.conversationId),
-          q.eq(q.field("userId"), args.userId)
-        )
-      )
-      .first();
+    if (!args.conversationId || !args.userId) return;
+    if (args.conversationId === "" || args.userId === "") return;
 
-    if (existing) {
-      await ctx.db.patch(existing._id, { lastTyped: Date.now() });
-    } else {
-      await ctx.db.insert("typing", {
-        conversationId: args.conversationId,
-        userId: args.userId,
-        lastTyped: Date.now(),
-      });
+    try {
+      const existing = await ctx.db
+        .query("typing")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("conversationId"), args.conversationId),
+            q.eq(q.field("userId"), args.userId)
+          )
+        )
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { lastTyped: Date.now() });
+      } else {
+        await ctx.db.insert("typing", {
+          conversationId: args.conversationId as Id<"conversations">,
+          userId: args.userId as Id<"users">,
+          lastTyped: Date.now(),
+        });
+      }
+    } catch {
+      return;
     }
   },
 });
@@ -104,24 +111,31 @@ export const setTyping = mutation({
 // Get typing users
 export const getTypingUsers = query({
   args: {
-    conversationId: v.id("conversations"),
-    currentUserId: v.id("users"),
+    conversationId: v.string(),
+    currentUserId: v.string(),
   },
   handler: async (ctx, args) => {
-    const typingUsers = await ctx.db
-      .query("typing")
-      .filter((q) =>
-        q.eq(q.field("conversationId"), args.conversationId)
-      )
-      .collect();
+    if (!args.conversationId || !args.currentUserId) return [];
+    if (args.conversationId === "" || args.currentUserId === "") return [];
 
-    const threeSecondsAgo = Date.now() - 3000;
+    try {
+      const typingUsers = await ctx.db
+        .query("typing")
+        .filter((q) =>
+          q.eq(q.field("conversationId"), args.conversationId)
+        )
+        .collect();
 
-    return typingUsers.filter(
-      (t) =>
-        t.userId !== args.currentUserId &&
-        t.lastTyped > threeSecondsAgo
-    );
+      const threeSecondsAgo = Date.now() - 3000;
+
+      return typingUsers.filter(
+        (t) =>
+          t.userId !== args.currentUserId &&
+          t.lastTyped > threeSecondsAgo
+      );
+    } catch {
+      return [];
+    }
   },
 });
 
@@ -172,7 +186,7 @@ export const markMessagesAsRead = mutation({
       .collect();
 
     if (messages.length === 0) return;
-    
+
     const unread = messages.filter(
       (m) => m.senderId !== args.userId && m.isRead !== true
     );
