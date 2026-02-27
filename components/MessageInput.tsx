@@ -21,31 +21,43 @@ export default function MessageInput({
   const setTyping = useMutation(api.messages.setTyping);
 
   const handleSend = async () => {
-    console.log("Sending with:", { conversationId, senderId, message });
-    if (!message.trim()) return;
+    console.log("=== SEND DEBUG ===");
+    console.log("conversationId:", conversationId);
+    console.log("senderId:", senderId);
+    console.log("message:", message);
+    console.log("types:", typeof conversationId, typeof senderId);
+
+    if (!message.trim()) {
+    console.log("BLOCKED: empty message");
+    return;
+    }
     if (!senderId || !conversationId) {
     console.error("Missing senderId or conversationId!");
     return;
     }
-    if (senderId === "" || conversationId === "") return;
+    if (senderId === "" || conversationId === "") {
+    console.log("BLOCKED: empty conversation");
+    return;
+    }
 
   setSending(true);
   setError(false);
 
   try {
-    await sendMessage({
+    const result = await sendMessage({
       conversationId: conversationId as string,
       senderId: senderId as string,
       content: message.trim(),
       messageType: "text",
     });
+    console.log("Send result:", result);
     setMessage("");
-  } catch (err) {
+    } catch (err) {
     console.error("Send failed:", err);
     setError(true);
-  } finally {
+    } finally {
     setSending(false);
-  }
+    }
 };
 
 

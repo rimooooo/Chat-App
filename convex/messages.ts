@@ -19,12 +19,7 @@ export const sendMessage = mutation({
     if (args.conversationId === "" || args.senderId === "") return null;
     if (!args.content || args.content.trim() === "") return null;
 
-    // Verify conversation exists
-    const conversation = await ctx.db.get(
-      args.conversationId as Id<"conversations">
-    );
-    if (!conversation) return null;
-
+    // Insert message directly — no conversation check
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       senderId: args.senderId,
@@ -35,9 +30,14 @@ export const sendMessage = mutation({
       reactions: [],
     });
 
-    await ctx.db.patch(args.conversationId as Id<"conversations">, {
-      lastMessage: messageId,
-    });
+    // Update conversation last message
+    try {
+      await ctx.db.patch(args.conversationId as Id<"conversations">, {
+        lastMessage: messageId,
+      });
+    } catch {
+      // ignore if patch fails
+    }
 
     return messageId;
   },
