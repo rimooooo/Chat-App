@@ -15,27 +15,38 @@ export default function SyncUser() {
     if (!isLoaded || !user) return;
 
     const sync = async () => {
-      await createUser({
-        clerkId: user.id,
-        name: user.fullName ?? "User",
-        email: user.emailAddresses[0].emailAddress,
-        imageUrl: user.imageUrl,
-      });
+      try {
+        const userId = await createUser({
+          clerkId: user.id,
+          name: user.fullName ?? user.firstName ?? "User",
+          email: user.emailAddresses[0].emailAddress,
+          imageUrl: user.imageUrl ?? "",
+        });
+        console.log("✅ User synced to Convex:", userId);
 
-      // Send first heartbeat immediately
-      await sendHeartbeat({ clerkId: user.id });
+        await sendHeartbeat({ clerkId: user.id });
+        console.log("✅ Heartbeat sent");
+      } catch (err) {
+        console.error("❌ SyncUser failed:", err);
+      }
     };
 
     sync();
 
-    // Send heartbeat every 30 seconds
-    const interval = setInterval(() => {
-      sendHeartbeat({ clerkId: user.id });
+    const interval = setInterval(async () => {
+      try {
+        await sendHeartbeat({ clerkId: user.id });
+      } catch (err) {
+        console.error("❌ Heartbeat failed:", err);
+      }
     }, 30000);
 
-    // Set offline when tab closes
-    const handleOffline = () => {
-      setOffline({ clerkId: user.id });
+    const handleOffline = async () => {
+      try {
+        await setOffline({ clerkId: user.id });
+      } catch (err) {
+        console.error("❌ SetOffline failed:", err);
+      }
     };
 
     window.addEventListener("beforeunload", handleOffline);

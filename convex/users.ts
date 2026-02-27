@@ -11,21 +11,30 @@ export const createUser = mutation({
     clerkId: v.string(),
   },
   handler: async (ctx, args) => {
-    // Check if user already exists
-    const existingUser = await ctx.db
+    if (!args.clerkId || args.clerkId === "") return null;
+
+    const existing = await ctx.db
       .query("users")
       .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
-    if (existingUser) return existingUser._id;
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        imageUrl: args.imageUrl,
+        name: args.name,
+        lastSeen: Date.now(),
+        isOnline: true,
+      });
+      return existing._id;
+    }
 
-    // Create new user
     const userId = await ctx.db.insert("users", {
       name: args.name,
       email: args.email,
       imageUrl: args.imageUrl,
       clerkId: args.clerkId,
       isOnline: true,
+      lastSeen: Date.now(),
     });
 
     return userId;
