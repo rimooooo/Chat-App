@@ -179,10 +179,10 @@ export default function Sidebar() {
                   </p>
                 </div>
 
-                {currentUser?._id && (
+                {currentUser?._id && conv._id && (
                   <UnreadCount
-                    conversationId={conv._id}
-                    userId={currentUser._id}
+                    conversationId={conv._id as string}
+                    userId={currentUser._id as string}
                   />
                 )}
               </div>
@@ -307,12 +307,17 @@ function UnreadCount({
   conversationId,
   userId,
 }: {
-  conversationId: Id<"conversations">;
-  userId: Id<"users">;
+  conversationId: string;
+  userId: string;
 }) {
   const count = useQuery(
     api.messages.getUnreadCount,
-    conversationId && userId
+    conversationId && 
+    userId && 
+    conversationId !== "" && 
+    userId !== "" &&
+    conversationId.length > 10 &&
+    userId.length > 10
       ? { conversationId, userId }
       : "skip"
   );

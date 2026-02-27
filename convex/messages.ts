@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 // Send a message
 export const sendMessage = mutation({
@@ -32,14 +33,14 @@ export const sendMessage = mutation({
 
 // Get all messages in a conversation
 export const getMessages = query({
-  args: { conversationId: v.id("conversations") },
+  args: { conversationId: v.string() },
   handler: async (ctx, args) => {
-    if (!args.conversationId) return [];
+    if (!args.conversationId || args.conversationId === "") return [];
 
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) =>
-        q.eq("conversationId", args.conversationId)
+        q.eq("conversationId", args.conversationId as Id<"conversations">)
       )
       .collect();
 
@@ -127,16 +128,17 @@ export const getTypingUsers = query({
 // Get unread message count
 export const getUnreadCount = query({
   args: {
-    conversationId: v.id("conversations"),
-    userId: v.id("users"),
+    conversationId: v.string(),
+    userId: v.string(),
   },
   handler: async (ctx, args) => {
     if (!args.conversationId || !args.userId) return 0;
+    if (args.conversationId === "" || args.userId === "") return 0;
 
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) =>
-        q.eq("conversationId", args.conversationId)
+        q.eq("conversationId", args.conversationId as Id<"conversations">)
       )
       .collect();
 
@@ -150,28 +152,27 @@ export const getUnreadCount = query({
 // Mark all messages as read
 export const markMessagesAsRead = mutation({
   args: {
-    conversationId: v.id("conversations"),
-    userId: v.id("users"),
+    conversationId: v.string(),
+    userId: v.string(),
   },
   handler: async (ctx, args) => {
-    // Verify conversation exists
-    const conversation = await ctx.db.get(args.conversationId);
+    if (!args.conversationId || !args.userId) return;
+    if (args.conversationId === "" || args.userId === "") return;
+
+    const conversation = await ctx.db.get(
+      args.conversationId as Id<"conversations">
+    );
     if (!conversation) return;
 
-    // Verify user is a participant
-    if (!conversation.participants.includes(args.userId)) return;
-
-    // Get all messages in conversation
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) =>
-        q.eq("conversationId", args.conversationId)
+        q.eq("conversationId", args.conversationId as Id<"conversations">)
       )
       .collect();
 
     if (messages.length === 0) return;
-
-    // Only patch messages not sent by current user that are unread
+    
     const unread = messages.filter(
       (m) => m.senderId !== args.userId && m.isRead !== true
     );

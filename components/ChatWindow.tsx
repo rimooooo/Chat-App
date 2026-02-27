@@ -22,30 +22,28 @@ export default function ChatWindow({
   const router = useRouter();
   const markAsRead = useMutation(api.messages.markMessagesAsRead);
 
-    const messages = useQuery(
-      api.messages.getMessages,
-      conversationId
-      ? { conversationId: conversationId as Id<"conversations"> }
-      : "skip"
-    );
+  const isValidId = conversationId && 
+    conversationId !== "" && 
+    conversationId.length > 10;
 
   const currentUser = useQuery(
     api.users.getUserByClerkId,
-    user?.id ? { clerkId: user.id } 
-    : "skip"
+    user?.id ? { clerkId: user.id } : "skip"
+  );
+
+  const messages = useQuery(
+    api.messages.getMessages,
+    isValidId ? { conversationId } : "skip"
   );
 
   const conversations = useQuery(
     api.conversations.getConversations,
-    currentUser?._id ? 
-    { userId: currentUser._id } 
-    : "skip"
+    currentUser?._id ? { userId: currentUser._id } : "skip"
   );
-
 
   const typingUsers = useQuery(
     api.messages.getTypingUsers,
-    conversationId && conversationId.length > 0 && currentUser?._id 
+    isValidId && currentUser?._id
       ? {
           conversationId: conversationId as Id<"conversations">,
           currentUserId: currentUser._id,
@@ -77,40 +75,36 @@ export default function ChatWindow({
 
     const atBottom = distanceFromBottom < threshold;
     setIsAtBottom(atBottom);
-
     if (atBottom) setHasNewMessages(false);
   };
 
   // When new messages arrive
   useEffect(() => {
     if (!messages) return;
-
     if (isAtBottom) {
-
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       setHasNewMessages(false);
     } else {
-
       setHasNewMessages(true);
     }
   }, [messages]);
 
   // Mark as read when conversation opens
   useEffect(() => {
-  if (!conversationId || conversationId.length === 0 || !currentUser?._id) return;
+    if (!isValidId || !currentUser?._id) return;
 
-  const mark = async () => {
-    try {
-      await markAsRead({
-        conversationId: conversationId as Id<"conversations">,
-        userId: currentUser._id as Id<"users">,
-      });
-    } catch (err) {
-      console.log("markAsRead failed:", err);
-    }
-  };
+    const mark = async () => {
+      try {
+        await markAsRead({
+          conversationId,
+          userId: currentUser._id,
+        });
+      } catch (err) {
+        console.log("markAsRead failed silently");
+      }
+    };
 
-  mark();
+    mark();
   }, [conversationId, currentUser?._id, messages]);
 
   const scrollToBottom = () => {
@@ -122,54 +116,54 @@ export default function ChatWindow({
   return (
     <div className="flex-1 flex flex-col h-screen">
 
-    {/* Header */}
-    <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-3">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-3">
 
-      {/* Back Button — mobile only */}
-      <button
-        onClick={() => router.push("/")}
-        className="md:hidden text-gray-500 hover:text-gray-700 mr-1"
-      >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-        <path fillRule="evenodd" d="M11.03 3.97a.75.75 0 010 1.06l-6.22 6.22H21a.75.75 0 010 1.5H4.81l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" />
-      </svg>
-      </button>
+        {/* Back Button — mobile only */}
+        <button
+          onClick={() => router.push("/")}
+          className="md:hidden text-gray-500 hover:text-gray-700 mr-1"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+            <path fillRule="evenodd" d="M11.03 3.97a.75.75 0 010 1.06l-6.22 6.22H21a.75.75 0 010 1.5H4.81l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" />
+          </svg>
+        </button>
 
-      {isGroup ? (
-      <>
-        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-          {groupName?.[0]?.toUpperCase() ?? "G"}
-        </div>
-        <div>
-          <p className="font-semibold text-gray-800">{groupName}</p>
-          <p className="text-xs text-gray-500">{memberCount} members</p>
-        </div>
-      </>
-      ) : otherUser ? (
-      <>
-        <div className="relative">
-          <img
-            src={otherUser.imageUrl}
-            alt={otherUser.name}
-            className="w-10 h-10 rounded-full object-cover"
-          />
-          <span
-            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-              isOtherUserOnline ? "bg-green-500" : "bg-gray-400"
-            }`}
-          />
-        </div>
-        <div>
-          <p className="font-semibold text-gray-800">{otherUser.name}</p>
-          <p className="text-xs text-gray-500">
-            {isOtherUserOnline ? "🟢 Online" : "⚫ Offline"}
-          </p>
-        </div>
-      </>
-      ) : (
-        <p className="text-gray-500">Loading...</p>
-      )}
-    </div>
+        {isGroup ? (
+          <>
+            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+              {groupName?.[0]?.toUpperCase() ?? "G"}
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800">{groupName}</p>
+              <p className="text-xs text-gray-500">{memberCount} members</p>
+            </div>
+          </>
+        ) : otherUser ? (
+          <>
+            <div className="relative">
+              <img
+                src={otherUser.imageUrl}
+                alt={otherUser.name}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <span
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                  isOtherUserOnline ? "bg-green-500" : "bg-gray-400"
+                }`}
+              />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800">{otherUser.name}</p>
+              <p className="text-xs text-gray-500">
+                {isOtherUserOnline ? "🟢 Online" : "⚫ Offline"}
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-500">Loading...</p>
+        )}
+      </div>
 
       {/* Messages Area */}
       <div
@@ -227,7 +221,6 @@ export default function ChatWindow({
         conversationId={conversationId as Id<"conversations">}
         senderId={currentUser?._id}
       />
-
     </div>
   );
 }
