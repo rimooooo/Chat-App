@@ -5,8 +5,8 @@ import { Id } from "./_generated/dataModel";
 // Send a message
 export const sendMessage = mutation({
   args: {
-    conversationId: v.id("conversations"),
-    senderId: v.id("users"),
+    conversationId: v.string(),
+    senderId: v.string(),
     content: v.string(),
     messageType: v.union(
       v.literal("text"),
@@ -15,15 +15,21 @@ export const sendMessage = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    if (!args.conversationId || !args.senderId) return null;
+    if (args.conversationId === "" || args.senderId === "") return null;
+    if (!args.content || args.content.trim() === "") return null;
+
     const messageId = await ctx.db.insert("messages", {
-      conversationId: args.conversationId,
-      senderId: args.senderId,
+      conversationId: args.conversationId as Id<"conversations">,
+      senderId: args.senderId as Id<"users">,
       content: args.content,
       messageType: args.messageType,
       isRead: false,
+      isDeleted: false,
+      reactions: [],
     });
 
-    await ctx.db.patch(args.conversationId, {
+    await ctx.db.patch(args.conversationId as Id<"conversations">, {
       lastMessage: messageId,
     });
 

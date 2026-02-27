@@ -6,8 +6,8 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
 interface MessageInputProps {
-  conversationId: Id<"conversations"> | undefined;
-  senderId: Id<"users"> | undefined;
+  conversationId: Id<"conversations"> | string | undefined;
+  senderId: Id<"users"> | string | undefined;
 }
 
 export default function MessageInput({
@@ -16,27 +16,46 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const sendMessage = useMutation(api.messages.sendMessage);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(false);
   const setTyping = useMutation(api.messages.setTyping);
 
   const handleSend = async () => {
-    if (!message.trim() || !senderId || !conversationId) return;
+  if (!message.trim()) return;
+  if (!senderId || !conversationId) return;
+  if (senderId === "" || conversationId === "") return;
 
+  setSending(true);
+  setError(false);
+
+  try {
     await sendMessage({
-      conversationId,
-      senderId,
+      conversationId: conversationId as string,
+      senderId: senderId as string,
       content: message.trim(),
       messageType: "text",
     });
-
     setMessage("");
-  };
+  } catch (err) {
+    console.error("Send failed:", err);
+    setError(true);
+  } finally {
+    setSending(false);
+  }
+};
+
 
   const handleTyping = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(e.target.value);
-
-    // Send typing indicator
-    if (senderId && conversationId) {
-      await setTyping({ conversationId, userId: senderId });
+  setMessage(e.target.value);
+  if (senderId && conversationId && senderId !== "" && conversationId !== "") {
+    try {
+      await setTyping({
+        conversationId: conversationId as string,
+        userId: senderId as string,
+      });
+    } catch {
+      // ignore typing errors
+    }
     }
   };
 
