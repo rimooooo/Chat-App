@@ -150,26 +150,33 @@ export const markMessagesAsRead = mutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    try {
-      const messages = await ctx.db
-        .query("messages")
-        .withIndex("by_conversationId", (q) =>
-          q.eq("conversationId", args.conversationId)
-        )
-        .collect();
+    // Verify conversation exists
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) return;
 
-      const unreadMessages = messages.filter(
-        (m) => m.senderId !== args.userId && !m.isRead
-      );
+    // Verify user is a participant
+    if (!conversation.participants.includes(args.userId)) return;
 
-      await Promise.all(
-        unreadMessages.map((m) =>
-          ctx.db.patch(m._id, { isRead: true })
-        )
-      );
-    } catch (error) {
-      console.error("Error marking messages as read:", error);
-    }
+    // Get all messages in conversation
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversationId", (q) =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .collect();
+
+    if (messages.length === 0) return;
+
+    // Only patch messages not sent by current user that are unread
+    const unread = messages.filter(
+      (m) => m.senderId !== args.userId && m.isRead !== true
+    );
+
+    if (unread.length === 0) return;
+
+    await Promise.all(
+      unread.map((m) => ctx.db.patch(m._id, { isRead: true }))
+    );
   },
 });
 

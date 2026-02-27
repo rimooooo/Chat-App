@@ -93,7 +93,7 @@ export default function ChatWindow({
   }, [messages]);
 
   // Mark as read when conversation opens
-useEffect(() => {
+  useEffect(() => {
   if (!conversationId || !currentUser?._id) return;
 
   const mark = async () => {
@@ -102,10 +102,12 @@ useEffect(() => {
         conversationId: conversationId as Id<"conversations">,
         userId: currentUser._id as Id<"users">,
       });
-    } catch (error) {
-      console.log("Mark as read failed:", error);
+    } catch (err) {
+      // Silently fail — not critical
+      console.log("markAsRead failed silently:", err);
     }
   };
+
   mark();
   }, [conversationId, currentUser?._id, messages]);
 
