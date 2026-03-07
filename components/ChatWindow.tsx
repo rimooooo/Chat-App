@@ -195,7 +195,7 @@ export default function ChatWindow({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-400">No messages yet. Say hello! 👋</p>
+            <p className="text-gray-400">Say hello! 👋</p>
           </div>
         ) : (
           messages.map((message) => (

@@ -91,7 +91,7 @@ export default function MessageInput({
           onChange={handleTyping}
           onKeyDown={handleKeyDown}
           placeholder="Type a message hellooo..."
-          className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-red-300"
+          className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300"
         />
         <button
           onClick={handleSend}
