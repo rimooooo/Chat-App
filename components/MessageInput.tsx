@@ -90,13 +90,13 @@ export default function MessageInput({
           value={message}
           onChange={handleTyping}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message hellooo..."
+          placeholder="Say something nice... 😊"
           className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300"
         />
         <button
           onClick={handleSend}
           disabled={!message.trim()}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+          className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
